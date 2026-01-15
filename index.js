@@ -1,20 +1,43 @@
 const net = require("net");
+const WebSocket = require("ws");
 
-const PORT = process.env.PORT || 3000;
+const TCP_PORT = process.env.PORT || 3000;
+const WS_PORT = 8080;
 
-const server = net.createServer((socket) => {
-  console.log("Client connected");
+let espSocket = null;
+
+/* ===== TCP SERVER (ESP32) ===== */
+const tcpServer = net.createServer((socket) => {
+  console.log("ESP32 bağlandı");
+  espSocket = socket;
 
   socket.on("data", (data) => {
-    console.log("Received:", data.toString());
-    socket.write("ACK\n");
+    console.log("ESP:", data.toString());
   });
 
   socket.on("end", () => {
-    console.log("Client disconnected");
+    console.log("ESP32 ayrıldı");
+    espSocket = null;
   });
 });
 
-server.listen(PORT, "0.0.0.0", () => {
-  console.log("UGV Relay listening on port", PORT);
+tcpServer.listen(TCP_PORT, () => {
+  console.log("TCP listening on", TCP_PORT);
 });
+
+/* ===== WEBSOCKET SERVER (WEB) ===== */
+const wss = new WebSocket.Server({ port: WS_PORT });
+
+wss.on("connection", (ws) => {
+  console.log("Web client bağlandı");
+
+  ws.on("message", (message) => {
+    console.log("Web:", message.toString());
+
+    if (espSocket) {
+      espSocket.write(message.toString() + "\n");
+    }
+  });
+});
+
+console.log("WebSocket listening on", WS_PORT);
