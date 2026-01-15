@@ -15,6 +15,6 @@ const server = net.createServer((socket) => {
   });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log("UGV Relay listening on port", PORT);
 });
