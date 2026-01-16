@@ -1,43 +1,38 @@
-const net = require("net");
+const http = require("http");
 const WebSocket = require("ws");
 
-const TCP_PORT = process.env.PORT || 3000;
-const WS_PORT = 8080;
+const PORT = process.env.PORT || 3000;
 
-let espSocket = null;
-
-/* ===== TCP SERVER (ESP32) ===== */
-const tcpServer = net.createServer((socket) => {
-  console.log("ESP32 bağlandı");
-  espSocket = socket;
-
-  socket.on("data", (data) => {
-    console.log("ESP:", data.toString());
-  });
-
-  socket.on("end", () => {
-    console.log("ESP32 ayrıldı");
-    espSocket = null;
-  });
+// 1️⃣ HTTP SERVER (Railway bunu istiyor)
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { "Content-Type": "text/plain" });
+  res.end("UGV Relay is running\n");
 });
 
-tcpServer.listen(TCP_PORT, () => {
-  console.log("TCP listening on", TCP_PORT);
-});
-
-/* ===== WEBSOCKET SERVER (WEB) ===== */
-const wss = new WebSocket.Server({ port: WS_PORT });
+// 2️⃣ WebSocket SERVER
+const wss = new WebSocket.Server({ server });
 
 wss.on("connection", (ws) => {
-  console.log("Web client bağlandı");
+  console.log("🔌 Client connected");
 
-  ws.on("message", (message) => {
-    console.log("Web:", message.toString());
+  ws.on("message", (msg) => {
+    console.log("📩 Received:", msg.toString());
 
-    if (espSocket) {
-      espSocket.write(message.toString() + "\n");
-    }
+    // broadcast (web → esp / esp → web)
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(msg.toString());
+      }
+    });
+  });
+
+  ws.on("close", () => {
+    console.log("❌ Client disconnected");
   });
 });
 
-console.log("WebSocket listening on", WS_PORT);
+// 3️⃣ SERVER BAŞLAT
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
+
