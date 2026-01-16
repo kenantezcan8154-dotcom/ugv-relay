@@ -1,38 +1,40 @@
+const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
+const path = require("path");
 
-const PORT = process.env.PORT || 3000;
-
-// 1️⃣ HTTP SERVER (Railway bunu istiyor)
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end("UGV Relay is running\n");
-});
-
-// 2️⃣ WebSocket SERVER
+const app = express();
+const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// 🔹 public klasörünü yayınla
+app.use(express.static(path.join(__dirname, "public")));
+
+// 🔹 Ana sayfa
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
 wss.on("connection", (ws) => {
-  console.log("🔌 Client connected");
+  console.log("✅ ESP32 veya Web Client bağlandı");
 
-  ws.on("message", (msg) => {
-    console.log("📩 Received:", msg.toString());
+  ws.on("message", (message) => {
+    console.log("📩 Gelen:", message.toString());
 
-    // broadcast (web → esp / esp → web)
+    // Herkese yayınla (ESP32 dahil)
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(msg.toString());
+        client.send(message.toString());
       }
     });
   });
 
   ws.on("close", () => {
-    console.log("❌ Client disconnected");
+    console.log("❌ Client ayrıldı");
   });
 });
 
-// 3️⃣ SERVER BAŞLAT
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log("🚀 Server running on port", PORT);
 });
-
