@@ -1,40 +1,30 @@
 const express = require("express");
-const http = require("http");
 const WebSocket = require("ws");
-const path = require("path");
 
 const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const PORT = process.env.PORT || 3000;
 
-// 🔹 public klasörünü yayınla
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static("public"));
 
-// 🔹 Ana sayfa
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+const server = app.listen(PORT, () => {
+  console.log("HTTP server ayakta:", PORT);
 });
 
-wss.on("connection", (ws) => {
-  console.log("✅ ESP32 veya Web Client bağlandı");
+const wss = new WebSocket.Server({ server });
 
-  ws.on("message", (message) => {
-    console.log("📩 Gelen:", message.toString());
+wss.on("connection", ws => {
+  console.log("✅ WebSocket client baglandi");
 
-    // Herkese yayınla (ESP32 dahil)
-    wss.clients.forEach((client) => {
+  ws.on("message", msg => {
+    console.log("📩 Gelen:", msg.toString());
+    wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(message.toString());
+        client.send(msg.toString());
       }
     });
   });
 
   ws.on("close", () => {
-    console.log("❌ Client ayrıldı");
+    console.log("❌ WebSocket client cikti");
   });
-});
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log("🚀 Server running on port", PORT);
 });
